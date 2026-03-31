@@ -1,10 +1,14 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Route Check 2026 - Final Classic Pro</title>
+    <title>Route Check 2026 - Pro Flow</title>
+    
+    <link rel="apple-touch-icon" href="IMG/icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { 
@@ -26,13 +30,13 @@
             position: absolute; bottom: 25%; color: white; font-weight: 300; 
             letter-spacing: 3px; z-index: 10001; 
             text-shadow: 0 0 10px rgba(0,0,0,0.8);
-            transition: opacity 0.5s ease-out; /* Schnelles Ausblenden */
+            transition: opacity 0.4s ease-out;
         }
 
         /* APP LAYOUT */
         #appContainer { display: none; flex: 1; flex-direction: column; background: var(--bg); opacity: 0; transition: opacity 1.5s ease-in; }
         
-        /* HEADER - SYMMETRISCH & GROSS */
+        /* HEADER - SYMMETRISCH NACH DEINEM WUNSCH */
         .header { 
             background: var(--card); padding: 10px 15px; 
             display: grid; 
@@ -48,17 +52,15 @@
         .header-next { text-align: center; }
         #next-num { 
             font-size: 1.8rem; font-weight: 900; color: #fff; 
-            background: #0f172a; padding: 0 10px; border-radius: 8px; 
+            background: #0f172a; padding: 0 12px; border-radius: 8px; 
             border: 1px solid var(--primary); display: inline-block; min-width: 45px; 
         }
-
         .header-right { text-align: right; }
         .btn-close { color: #ef4444; font-size: 1.8rem; cursor: pointer; font-weight: 900; }
 
         .controls { background: var(--card); padding: 8px 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-bottom: 1px solid #334155; }
         select { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 10px; font-size: 0.85rem; outline: none; -webkit-appearance: none; }
         
-        /* MAP */
         #map-wrapper { flex: 1; position: relative; overflow: hidden; background: #000; }
         #map { width: 200%; height: 200%; position: absolute; top: -50%; left: -50%; z-index: 1; }
 
@@ -79,6 +81,7 @@
         #progBar { width: 0%; height: 100%; background: var(--accent); transition: width 0.5s; }
         .footer-content { display: flex; justify-content: space-between; align-items: center; color: #94a3b8; font-size: 0.8rem; font-weight: bold; }
 
+        /* ICONS */
         .user-location-icon { width: 22px; height: 22px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 15px rgba(59, 130, 246, 0.8); }
         .number-icon { background: var(--primary); color: white; border-radius: 50%; text-align: center; line-height: 26px; font-weight: 800; border: 2px solid white; font-size: 12px; transition: all 0.4s; }
         .number-icon.done { background: var(--done) !important; opacity: 0.3; border-color: transparent; }
@@ -138,26 +141,17 @@
 
     function lightUpAndStart() {
         const sound = document.getElementById('soundAction');
-        const sText = document.getElementById('startText');
-        const cDark = document.getElementById('coverDark');
-        const cLight = document.getElementById('coverLight');
-        const cScreen = document.getElementById('coverScreen');
-        const app = document.getElementById('appContainer');
-
         if (sound) sound.play().catch(() => {});
-        
-        // Text sofort ausblenden
-        sText.style.opacity = '0';
-        // Licht an, Dunkelheit aus
-        cDark.style.opacity = '0';
-        cLight.style.opacity = '1';
+        document.getElementById('startText').style.opacity = '0';
+        document.getElementById('coverDark').style.opacity = '0';
+        document.getElementById('coverLight').style.opacity = '1';
 
         setTimeout(() => {
-            cScreen.style.opacity = '0';
-            app.style.display = 'flex';
+            document.getElementById('coverScreen').style.opacity = '0';
+            document.getElementById('appContainer').style.display = 'flex';
             setTimeout(() => {
-                app.style.opacity = '1';
-                cScreen.style.display = 'none';
+                document.getElementById('appContainer').style.opacity = '1';
+                document.getElementById('coverScreen').style.display = 'none';
                 initMap(); initAppData(); requestWakeLock();
             }, 800);
         }, 2200); 
@@ -196,7 +190,7 @@
         currentPoints.forEach((p, i) => {
             if (cur.distanceTo(L.latLng(p.lat, p.lng)) < 18 && !visitedPoints.has(i)) {
                 visitedPoints.add(i);
-                refreshMarkers();
+                syncRouteLine(); // Zeichnet Route neu (Past/Future)
                 checkAutoNext(i);
             }
         });
@@ -230,21 +224,39 @@
         }
     }
 
-    function refreshMarkers() {
-        routeLayer.clearLayers();
-        currentPoints.forEach((p, i) => {
-            const isDone = visitedPoints.has(i);
-            L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `number-icon ${isDone ? 'done' : ''}`, html: i + 1, iconSize: [26, 26] }) }).addTo(routeLayer);
-        });
-        syncRouteLine();
-    }
-
     async function syncRouteLine() {
         const coords = currentPoints.map(p => `${p.lng},${p.lat}`).join(';');
         try {
             const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
             const d = await r.json();
-            L.polyline(d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]), {color: '#3b82f6', weight: 8, opacity: 0.5}).addTo(routeLayer);
+            const fullPath = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            
+            routeLayer.clearLayers();
+
+            let lastVisitedIdx = -1;
+            for(let i = 0; i < currentPoints.length; i++) {
+                if(visitedPoints.has(i)) lastVisitedIdx = i;
+            }
+
+            if (lastVisitedIdx === -1) {
+                L.polyline(fullPath, {color: '#3b82f6', weight: 8, opacity: 0.7}).addTo(routeLayer);
+            } else {
+                const splitFactor = (lastVisitedIdx + 1) / currentPoints.length;
+                const splitPoint = Math.floor(fullPath.length * splitFactor);
+                const pastPath = fullPath.slice(0, splitPoint + 1);
+                const futurePath = fullPath.slice(splitPoint);
+
+                L.polyline(pastPath, {color: '#475569', weight: 6, opacity: 0.4, dashArray: '5, 10'}).addTo(routeLayer);
+                L.polyline(futurePath, {color: '#3b82f6', weight: 8, opacity: 0.8}).addTo(routeLayer);
+            }
+
+            currentPoints.forEach((p, i) => {
+                const isDone = visitedPoints.has(i);
+                L.marker([p.lat, p.lng], { 
+                    icon: L.divIcon({ className: `number-icon ${isDone ? 'done' : ''}`, html: i + 1, iconSize: [26, 26] }) 
+                }).addTo(routeLayer);
+            });
+
         } catch(e) {}
     }
 
@@ -287,7 +299,7 @@
     function syncPreview() {
         const tIdx = document.getElementById('tSel').value, sIdx = document.getElementById('sSel').value;
         const section = projectData.touren[tIdx].abschnitte[sIdx];
-        currentPoints = section.stopps; visitedPoints.clear(); refreshMarkers();
+        currentPoints = section.stopps; visitedPoints.clear(); syncRouteLine();
         document.getElementById('progText').innerText = `ABSCHNITT ${parseInt(sIdx)+1} / ${projectData.touren[tIdx].abschnitte.length}`;
         document.getElementById('progBar').style.width = Math.round(((parseInt(sIdx)+1)/projectData.touren[tIdx].abschnitte.length)*100) + "%";
     }
