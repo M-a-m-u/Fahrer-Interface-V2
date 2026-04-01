@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Route Check 2026 - Pro Flow</title>
+    <title>Route Check 2026 - Pro Visibility</title>
     
-    <link rel="apple-touch-icon" href="IMG/icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
@@ -36,7 +36,7 @@
         /* APP LAYOUT */
         #appContainer { display: none; flex: 1; flex-direction: column; background: var(--bg); opacity: 0; transition: opacity 1.5s ease-in; }
         
-        /* HEADER - SYMMETRISCH NACH DEINEM WUNSCH */
+        /* HEADER */
         .header { 
             background: var(--card); padding: 10px 15px; 
             display: grid; 
@@ -53,8 +53,11 @@
         #next-num { 
             font-size: 1.8rem; font-weight: 900; color: #fff; 
             background: #0f172a; padding: 0 12px; border-radius: 8px; 
-            border: 1px solid var(--primary); display: inline-block; min-width: 45px; 
+            border: 2px solid var(--primary); display: inline-block; 
+            min-width: 45px; text-align: center; cursor: pointer;
         }
+        #next-num:active { background: var(--primary); }
+
         .header-right { text-align: right; }
         .btn-close { color: #ef4444; font-size: 1.8rem; cursor: pointer; font-weight: 900; }
 
@@ -68,7 +71,6 @@
         #btn-theme { top: 15px; }
         #btn-nav { top: 75px; color: var(--primary); }
 
-        /* FOOTER - TRANSPARENT CLASSIC */
         .bottom-bar { 
             background: rgba(30, 41, 59, 0.7); 
             padding: 10px 20px; 
@@ -82,8 +84,8 @@
         .footer-content { display: flex; justify-content: space-between; align-items: center; color: #94a3b8; font-size: 0.8rem; font-weight: bold; }
 
         /* ICONS */
-        .user-location-icon { width: 22px; height: 22px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 15px rgba(59, 130, 246, 0.8); }
-        .number-icon { background: var(--primary); color: white; border-radius: 50%; text-align: center; line-height: 26px; font-weight: 800; border: 2px solid white; font-size: 12px; transition: all 0.4s; }
+        .user-location-icon { width: 22px; height: 22px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 15px rgba(59, 130, 246, 0.8); transition: transform 0.3s linear; }
+        .number-icon { background: var(--primary); color: white; border-radius: 50%; text-align: center; line-height: 26px; font-weight: 800; border: 2px solid white; font-size: 12px; }
         .number-icon.done { background: var(--done) !important; opacity: 0.3; border-color: transparent; }
     </style>
 </head>
@@ -104,7 +106,7 @@
                 <span id="nextDist">--</span><span class="unit-m">m</span>
             </div>
             <div class="header-next">
-                <div id="next-num">--</div>
+                <div id="next-num" title="Zum nächsten Abschnitt springen">--</div>
             </div>
             <div class="header-right">
                 <div class="btn-close" onclick="location.reload()">✕</div>
@@ -145,7 +147,6 @@
         document.getElementById('startText').style.opacity = '0';
         document.getElementById('coverDark').style.opacity = '0';
         document.getElementById('coverLight').style.opacity = '1';
-
         setTimeout(() => {
             document.getElementById('coverScreen').style.opacity = '0';
             document.getElementById('appContainer').style.display = 'flex';
@@ -173,7 +174,7 @@
         
         if (lastPos) {
             userMarker.setLatLng(cur);
-            map.panTo(cur, { animate: true, duration: 1.0 });
+            map.panTo(cur, { animate: true, duration: 0.8 });
             if (speed > 4) {
                 const newRotation = Math.atan2(lng - lastPos.lng, lat - lastPos.lat) * (180 / Math.PI);
                 if (Math.abs(newRotation - lastRotation) > 3) {
@@ -187,13 +188,15 @@
         lastPos = {lat, lng};
         document.getElementById('speedText').innerText = speed + " km/h";
         
+        let changed = false;
         currentPoints.forEach((p, i) => {
             if (cur.distanceTo(L.latLng(p.lat, p.lng)) < 18 && !visitedPoints.has(i)) {
                 visitedPoints.add(i);
-                syncRouteLine(); // Zeichnet Route neu (Past/Future)
-                checkAutoNext(i);
+                changed = true;
+                if (i === currentPoints.length - 1) checkAutoNext();
             }
         });
+        if(changed) syncRouteLine(); 
         updateUI(cur);
     }
 
@@ -207,24 +210,34 @@
             document.getElementById('next-num').innerText = nextIdx + 1;
         } else {
             document.getElementById('next-num').innerText = "✓";
+            document.getElementById('nextDist').innerText = "0";
         }
     }
 
-    function checkAutoNext(index) {
-        if (index === currentPoints.length - 1 && !isAutoLoading) {
-            isAutoLoading = true;
-            const sSel = document.getElementById('sSel');
-            if (sSel.selectedIndex < sSel.options.length - 1) {
-                setTimeout(() => {
-                    sSel.selectedIndex += 1;
-                    updateSegments();
-                    isAutoLoading = false;
-                }, 3000);
-            }
+    // Manueller Klick auf die Nummer oben rechts lädt den nächsten Abschnitt
+    document.getElementById('next-num').onclick = function() {
+        const sSel = document.getElementById('sSel');
+        if (sSel.selectedIndex < sSel.options.length - 1) {
+            sSel.selectedIndex += 1;
+            syncPreview();
+        }
+    };
+
+    function checkAutoNext() {
+        if (isAutoLoading) return;
+        isAutoLoading = true;
+        const sSel = document.getElementById('sSel');
+        if (sSel.selectedIndex < sSel.options.length - 1) {
+            setTimeout(() => {
+                sSel.selectedIndex += 1;
+                syncPreview();
+                isAutoLoading = false;
+            }, 3000);
         }
     }
 
     async function syncRouteLine() {
+        if (currentPoints.length < 2) return;
         const coords = currentPoints.map(p => `${p.lng},${p.lat}`).join(';');
         try {
             const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
@@ -232,22 +245,19 @@
             const fullPath = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
             
             routeLayer.clearLayers();
-
             let lastVisitedIdx = -1;
-            for(let i = 0; i < currentPoints.length; i++) {
-                if(visitedPoints.has(i)) lastVisitedIdx = i;
-            }
+            for(let i = 0; i < currentPoints.length; i++) { if(visitedPoints.has(i)) lastVisitedIdx = i; }
 
             if (lastVisitedIdx === -1) {
-                L.polyline(fullPath, {color: '#3b82f6', weight: 8, opacity: 0.7}).addTo(routeLayer);
+                L.polyline(fullPath, {color: '#3b82f6', weight: 12, opacity: 0.8}).addTo(routeLayer);
             } else {
                 const splitFactor = (lastVisitedIdx + 1) / currentPoints.length;
                 const splitPoint = Math.floor(fullPath.length * splitFactor);
                 const pastPath = fullPath.slice(0, splitPoint + 1);
                 const futurePath = fullPath.slice(splitPoint);
 
-                L.polyline(pastPath, {color: '#475569', weight: 6, opacity: 0.4, dashArray: '5, 10'}).addTo(routeLayer);
-                L.polyline(futurePath, {color: '#3b82f6', weight: 8, opacity: 0.8}).addTo(routeLayer);
+                L.polyline(pastPath, {color: '#475569', weight: 8, opacity: 0.4, dashArray: '5, 15'}).addTo(routeLayer);
+                L.polyline(futurePath, {color: '#3b82f6', weight: 12, opacity: 0.9}).addTo(routeLayer);
             }
 
             currentPoints.forEach((p, i) => {
@@ -256,7 +266,6 @@
                     icon: L.divIcon({ className: `number-icon ${isDone ? 'done' : ''}`, html: i + 1, iconSize: [26, 26] }) 
                 }).addTo(routeLayer);
             });
-
         } catch(e) {}
     }
 
@@ -290,14 +299,13 @@
     function updateSegments() {
         const tIdx = document.getElementById('tSel').value;
         const sSel = document.getElementById('sSel');
-        if (sSel.options.length === 0 || isAutoLoading) {
-             sSel.innerHTML = projectData.touren[tIdx].abschnitte.map((s, i) => `<option value="${i}">${s.bezeichnung}</option>`).join('');
-        }
+        sSel.innerHTML = projectData.touren[tIdx].abschnitte.map((s, i) => `<option value="${i}">${s.bezeichnung}</option>`).join('');
         syncPreview();
     }
 
     function syncPreview() {
         const tIdx = document.getElementById('tSel').value, sIdx = document.getElementById('sSel').value;
+        if (!projectData.touren[tIdx].abschnitte[sIdx]) return;
         const section = projectData.touren[tIdx].abschnitte[sIdx];
         currentPoints = section.stopps; visitedPoints.clear(); syncRouteLine();
         document.getElementById('progText').innerText = `ABSCHNITT ${parseInt(sIdx)+1} / ${projectData.touren[tIdx].abschnitte.length}`;
