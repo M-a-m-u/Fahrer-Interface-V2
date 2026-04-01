@@ -3,18 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Route Check 2026 - Pro Edition</title>
+    <title>Route Check 2026 - Pro Flow</title>
     
+    <link rel="apple-touch-icon" href="IMG/icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { 
-            --bg: #020617; --card: #1e293b; --primary: #3b82f6; --text: #f8fafc; --accent: #22c55e; 
+            --bg: #020617; --card: #1e293b; --primary: #3b82f6; --text: #f8fafc; --accent: #22c55e; --done: #475569; 
         }
         
         html, body { height: 100%; margin: 0; padding: 0; background: #000; overflow: hidden; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top); }
 
-        /* DEIN ORIGINAL DESIGN - UNVERÄNDERT */
+        /* COVER SYSTEM - DEIN ORIGINAL */
+        #coverScreen { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: #000; z-index: 9999; 
+            display: flex; justify-content: center; align-items: center; 
+            cursor: pointer; transition: opacity 1.2s ease-in-out; 
+        }
+        #coverDark, #coverLight { position: absolute; width: 100%; height: 100%; object-fit: cover; transition: opacity 2s ease-in-out; }
+        #startText { 
+            position: absolute; bottom: 25%; color: white; font-weight: 300; 
+            letter-spacing: 3px; z-index: 10001; 
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            transition: opacity 0.4s ease-out;
+        }
+
+        /* APP LAYOUT */
+        #appContainer { display: none; flex: 1; flex-direction: column; background: var(--bg); opacity: 0; transition: opacity 1.5s ease-in; }
+        
+        /* HEADER */
         .header { 
             background: var(--card); padding: 10px 15px; 
             display: grid; 
@@ -31,6 +53,7 @@
             font-size: 1.8rem; font-weight: 900; color: #fff; 
             background: #0f172a; padding: 0 12px; border-radius: 8px; 
             border: 1px solid var(--primary); display: inline-block; min-width: 45px; 
+            cursor: pointer; 
         }
         .header-right { text-align: right; }
         .btn-close { color: #ef4444; font-size: 1.8rem; cursor: pointer; font-weight: 900; }
@@ -39,14 +62,14 @@
         select { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 10px; font-size: 0.85rem; outline: none; -webkit-appearance: none; }
         
         #map-wrapper { flex: 1; position: relative; overflow: hidden; background: #000; }
-        #map { width: 100%; height: 100%; z-index: 1; }
+        #map { width: 200%; height: 200%; position: absolute; top: -50%; left: -50%; z-index: 1; }
 
         .map-btn { position: absolute; right: 15px; width: 50px; height: 50px; background: rgba(30, 41, 59, 0.8); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 2000; border: 1px solid #475569; font-size: 1.2rem; backdrop-filter: blur(5px); }
         #btn-theme { top: 15px; }
         #btn-nav { top: 75px; color: var(--primary); }
-
-        /* DER UNSICHTBARE PACMAN-TRIGGER UNTER NAV */
-        #btn-secret { top: 135px; opacity: 0; border: none; background: transparent; cursor: pointer; }
+        
+        /* GEHEIM BUTTON UNTER DEM NAV BUTTON */
+        #btn-pacman-trigger { position: absolute; right: 15px; top: 135px; width: 50px; height: 50px; background: rgba(30, 41, 59, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 2000; cursor: pointer; border: 1px solid rgba(71, 85, 105, 0.2); }
 
         .bottom-bar { 
             background: rgba(30, 41, 59, 0.7); padding: 10px 20px; 
@@ -57,33 +80,36 @@
         #progBar { width: 0%; height: 100%; background: var(--accent); transition: width 0.5s; }
         .footer-content { display: flex; justify-content: space-between; align-items: center; color: #94a3b8; font-size: 0.8rem; font-weight: bold; }
 
-        /* ICONS & EFFEKTE */
+        /* ICONS */
         .user-location-icon { width: 22px; height: 22px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 15px rgba(59, 130, 246, 0.8); }
-        .number-icon { background: var(--primary); color: white; border-radius: 50%; text-align: center; line-height: 26px; font-weight: 800; border: 2px solid white; font-size: 12px; }
+        .number-icon { background: var(--primary); color: white; border-radius: 50%; text-align: center; line-height: 26px; font-weight: 800; border: 2px solid white; font-size: 12px; transition: all 0.4s; }
+        .number-icon.done { background: var(--done) !important; opacity: 0.3; border-color: transparent; }
 
-        /* PACMAN SPEZIAL CSS */
         .pacman-icon { width: 30px; height: 30px; background: #ffff00; border-radius: 50%; position: relative; }
         .pacman-mouth { position: absolute; width: 100%; height: 100%; background: #000; clip-path: polygon(100% 50%, 50% 50%, 100% 0, 100% 100%); animation: eat 0.3s infinite alternate; }
         @keyframes eat { 0% { clip-path: polygon(100% 50%, 50% 50%, 100% 50%, 100% 50%); } 100% { clip-path: polygon(100% 50%, 50% 50%, 100% 0, 100% 100%); } }
-        
-        .pacman-theme #nextDist { color: #ffff00 !important; text-shadow: 0 0 10px #ffff00; }
-        .pacman-theme .number-icon { 
-            background: #ff0000 !important; 
-            box-shadow: 0 0 15px #ff0000; 
-            border: 2px solid #fff !important; 
-        }
+        .pacman-mode #nextDist { color: #ffff00 !important; text-shadow: 0 0 10px #ffff00; }
+        .pacman-mode .number-icon:not(.done) { background: #ff0000 !important; box-shadow: 0 0 15px #ff0000; border: 2px solid #fff !important; }
     </style>
 </head>
-<body class="normal-theme">
+<body>
 
-    <div id="appContainer" style="display: flex; flex: 1; flex-direction: column;">
+    <audio id="soundAction" src="IMG/light-on.mp3" preload="auto"></audio>
+
+    <div id="coverScreen" onclick="lightUpAndStart()">
+        <img id="coverDark" src="IMG/cover01.png">
+        <img id="coverLight" src="IMG/cover02.png" style="opacity:0">
+        <div id="startText">TIPPEN ZUM STARTEN</div>
+    </div>
+
+    <div id="appContainer">
         <div class="header">
             <div class="header-left">ZIEL-DISTANZ<br><span id="wakeStatus" style="color:var(--accent); font-size:0.5rem">WAKE-LOCK AKTIV</span></div>
             <div class="header-center">
                 <span id="nextDist">--</span><span class="unit-m">m</span>
             </div>
             <div class="header-next">
-                <div id="next-num">--</div>
+                <div id="next-num" onclick="manualNext()">--</div>
             </div>
             <div class="header-right">
                 <div class="btn-close" onclick="location.reload()">✕</div>
@@ -99,7 +125,7 @@
             <div id="map"></div>
             <div id="btn-theme" class="map-btn" onclick="toggleTheme()">🌓</div>
             <div id="btn-nav" class="map-btn" onclick="navToStart()">📍</div>
-            <div id="btn-secret" class="map-btn" onclick="togglePacmanMode()"></div>
+            <div id="btn-pacman-trigger" onclick="togglePacman()"></div>
         </div>
 
         <div class="bottom-bar">
@@ -116,51 +142,81 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     let projectData = null, map, routeLayer, userMarker, tileLayer;
-    let currentPoints = [], visitedPoints = new Set(), isPacman = false, isDarkMode = true;
+    let lastPos = null, lastRotation = 0, currentPoints = [], visitedPoints = new Set();
+    let wakeLock = null, isAutoLoading = false, isDarkMode = true, isPacman = false;
 
-    window.onload = () => { initMap(); initAppData(); };
+    function lightUpAndStart() {
+        const sound = document.getElementById('soundAction');
+        if (sound) sound.play().catch(() => {});
+        document.getElementById('startText').style.opacity = '0';
+        document.getElementById('coverDark').style.opacity = '0';
+        document.getElementById('coverLight').style.opacity = '1';
+
+        setTimeout(() => {
+            document.getElementById('coverScreen').style.opacity = '0';
+            document.getElementById('appContainer').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('appContainer').style.opacity = '1';
+                document.getElementById('coverScreen').style.display = 'none';
+                initMap(); initAppData(); requestWakeLock();
+            }, 800);
+        }, 2200); 
+    }
 
     function initMap() {
-        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([51.2, 6.7], 17);
+        if(map) return;
+        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([51.2, 6.7], 18);
         tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
         routeLayer = L.layerGroup().addTo(map);
-        userMarker = L.marker([0,0], { icon: getVehicleIcon() }).addTo(map);
+        userMarker = L.marker([0,0], { icon: getIcon(), zIndexOffset: 1000 }).addTo(map);
         if (navigator.geolocation) navigator.geolocation.watchPosition(updatePos, null, { enableHighAccuracy: true });
     }
 
-    function getVehicleIcon() {
-        if(isPacman) return L.divIcon({ className: '', html: '<div class="pacman-icon"><div class="pacman-mouth"></div></div>', iconSize:[30,30], iconAnchor:[15,15] });
+    function getIcon() {
+        if (isPacman) return L.divIcon({ className: '', html: '<div class="pacman-icon"><div class="pacman-mouth"></div></div>', iconSize:[30,30], iconAnchor:[15,15] });
         return L.divIcon({ className: 'user-location-icon', iconSize: [22, 22], iconAnchor: [11, 11] });
     }
 
-    function togglePacmanMode() {
+    function togglePacman() {
         isPacman = !isPacman;
-        document.body.className = isPacman ? 'pacman-theme' : 'normal-theme';
-        userMarker.setIcon(getVehicleIcon());
+        document.body.classList.toggle('pacman-mode', isPacman);
+        userMarker.setIcon(getIcon());
         syncRouteLine();
     }
 
     function updatePos(pos) {
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
-        const cur = L.latLng(lat, lng);
-        userMarker.setLatLng(cur);
-        map.panTo(cur);
-        document.getElementById('speedText').innerText = Math.round((pos.coords.speed || 0) * 3.6) + " km/h";
+        const cur = L.latLng(lat, lng), speed = Math.round((pos.coords.speed || 0) * 3.6);
+        
+        if (lastPos) {
+            userMarker.setLatLng(cur);
+            map.panTo(cur, { animate: true, duration: 1.0 });
+            if (speed > 4) {
+                const newRotation = Math.atan2(lng - lastPos.lng, lat - lastPos.lat) * (180 / Math.PI);
+                if (Math.abs(newRotation - lastRotation) > 3) {
+                    document.getElementById('map').style.transform = `rotate(${-newRotation}deg)`;
+                    lastRotation = newRotation;
+                }
+            }
+        } else {
+            userMarker.setLatLng(cur); map.setView(cur, 18);
+        }
+        lastPos = {lat, lng};
+        document.getElementById('speedText').innerText = speed + " km/h";
         
         currentPoints.forEach((p, i) => {
-            if (cur.distanceTo(L.latLng(p.lat, p.lng)) < 20 && !visitedPoints.has(i)) {
+            if (cur.distanceTo(L.latLng(p.lat, p.lng)) < 18 && !visitedPoints.has(i)) {
                 visitedPoints.add(i);
-                syncRouteLine(); 
-                if (i === currentPoints.length - 1) {
-                    setTimeout(() => autoNext(), 500); // Schneller Wechsel
-                }
+                syncRouteLine();
+                checkAutoNext(i);
             }
         });
         updateUI(cur);
     }
 
     function updateUI(cur) {
-        const nextIdx = currentPoints.findIndex((_, i) => !visitedPoints.has(i));
+        if (!currentPoints.length) return;
+        let nextIdx = currentPoints.findIndex((_, i) => !visitedPoints.has(i));
         if (nextIdx !== -1) {
             const d = cur.distanceTo(L.latLng(currentPoints[nextIdx].lat, currentPoints[nextIdx].lng));
             document.getElementById('nextDist').innerText = Math.round(d);
@@ -170,39 +226,59 @@
         }
     }
 
-    function autoNext() {
+    function manualNext() {
         const sSel = document.getElementById('sSel');
         if (sSel.selectedIndex < sSel.options.length - 1) {
             sSel.selectedIndex += 1;
+            // Wir rufen direkt syncPreview auf, damit der Wechsel sofort passiert
             syncPreview();
         }
     }
 
+    function checkAutoNext(index) {
+        if (index === currentPoints.length - 1 && !isAutoLoading) {
+            isAutoLoading = true;
+            const sSel = document.getElementById('sSel');
+            if (sSel.selectedIndex < sSel.options.length - 1) {
+                setTimeout(() => {
+                    sSel.selectedIndex += 1;
+                    syncPreview();
+                    isAutoLoading = false;
+                }, 500); 
+            }
+        }
+    }
+
     async function syncRouteLine() {
-        if (currentPoints.length < 2) return;
+        if (!currentPoints.length) return;
         const coords = currentPoints.map(p => `${p.lng},${p.lat}`).join(';');
-        const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
-        const d = await r.json();
-        const fullPath = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-        
-        routeLayer.clearLayers();
-
-        // HIER KANNST DU DIE BREITE ÄNDERN (weight)
-        const currentWeight = isPacman ? 12 : 10; 
-        const currentColor = isPacman ? '#2121ff' : '#3b82f6';
-
-        L.polyline(fullPath, { 
-            color: currentColor, 
-            weight: currentWeight, 
-            opacity: 0.8 
-        }).addTo(routeLayer);
-
-        currentPoints.forEach((p, i) => {
-            if (isPacman && visitedPoints.has(i)) return; // Gefressene Punkte weg
-            L.marker([p.lat, p.lng], { 
-                icon: L.divIcon({ className: 'number-icon', html: i + 1, iconSize: [26, 26] }) 
-            }).addTo(routeLayer);
-        });
+        try {
+            const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+            const d = await r.json();
+            const fullPath = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            routeLayer.clearLayers();
+            let lastVisitedIdx = -1;
+            for(let i = 0; i < currentPoints.length; i++) { if(visitedPoints.has(i)) lastVisitedIdx = i; }
+            const w = isPacman ? 12 : 8;
+            const color = isPacman ? '#2121ff' : '#3b82f6';
+            if (lastVisitedIdx === -1) {
+                L.polyline(fullPath, {color: color, weight: w, opacity: 0.8}).addTo(routeLayer);
+            } else {
+                const splitFactor = (lastVisitedIdx + 1) / currentPoints.length;
+                const splitPoint = Math.floor(fullPath.length * splitFactor);
+                const futurePath = fullPath.slice(splitPoint);
+                if (!isPacman) {
+                    const pastPath = fullPath.slice(0, splitPoint + 1);
+                    L.polyline(pastPath, {color: '#475569', weight: 6, opacity: 0.4, dashArray: '5, 10'}).addTo(routeLayer);
+                }
+                L.polyline(futurePath, {color: color, weight: w, opacity: 0.8}).addTo(routeLayer);
+            }
+            currentPoints.forEach((p, i) => {
+                const isDone = visitedPoints.has(i);
+                if (isPacman && isDone) return;
+                L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `number-icon ${isDone ? 'done' : ''}`, html: i + 1, iconSize: [26, 26] }) }).addTo(routeLayer);
+            });
+        } catch(e) {}
     }
 
     function toggleTheme() {
@@ -211,16 +287,13 @@
     }
 
     function navToStart() {
-        if(currentPoints.length > 0) window.open(`comgooglemaps://?daddr=${currentPoints[0].lat},${currentPoints[0].lng}&directionsmode=driving`, '_blank');
+        if(!currentPoints.length) return;
+        window.open(`comgooglemaps://?daddr=${currentPoints[0].lat},${currentPoints[0].lng}&directionsmode=driving`, '_blank');
     }
 
     function loadFile(event) {
         const reader = new FileReader();
-        reader.onload = (e) => { 
-            projectData = JSON.parse(e.target.result); 
-            localStorage.setItem('active_route_data', e.target.result);
-            fillTours(); 
-        };
+        reader.onload = (e) => { projectData = JSON.parse(e.target.result); localStorage.setItem('active_route_data', e.target.result); fillTours(); };
         reader.readAsText(event.target.files[0]);
     }
 
@@ -231,13 +304,15 @@
 
     function fillTours() {
         const tSel = document.getElementById('tSel');
-        tSel.innerHTML = projectData.touren.map((t, i) => `<option value="${i}">${t.id} ${t.name || ''}</option>`).join('');
+        if (!projectData) return;
+        tSel.innerHTML = projectData.touren.map((t, i) => `<option value="${i}">${t.id} - ${t.name}</option>`).join('');
         updateSegments();
     }
 
     function updateSegments() {
         const tIdx = document.getElementById('tSel').value;
         const sSel = document.getElementById('sSel');
+        if (!projectData || !projectData.touren[tIdx]) return;
         sSel.innerHTML = projectData.touren[tIdx].abschnitte.map((s, i) => `<option value="${i}">${s.bezeichnung}</option>`).join('');
         syncPreview();
     }
@@ -245,9 +320,14 @@
     function syncPreview() {
         const tIdx = document.getElementById('tSel').value, sIdx = document.getElementById('sSel').value;
         const section = projectData.touren[tIdx].abschnitte[sIdx];
+        if (!section) return;
         currentPoints = section.stopps; visitedPoints.clear(); syncRouteLine();
         document.getElementById('progText').innerText = `ABSCHNITT ${parseInt(sIdx)+1} / ${projectData.touren[tIdx].abschnitte.length}`;
         document.getElementById('progBar').style.width = Math.round(((parseInt(sIdx)+1)/projectData.touren[tIdx].abschnitte.length)*100) + "%";
+    }
+
+    async function requestWakeLock() {
+        try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
     }
 </script>
 </body>
