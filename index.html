@@ -82,10 +82,34 @@
 
         /* ICONS */
         .user-location-icon { width: 22px; height: 22px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 15px rgba(59, 130, 246, 0.8); }
-        .number-icon { background: var(--primary); color: white; border-radius: 50%; text-align: center; line-height: 26px; font-weight: 800; border: 2px solid white; font-size: 12px; transition: all 0.4s; }
-        .number-icon.done { background: var(--done) !important; opacity: 0.3; border-color: transparent; }
 
-        .pacman-icon { width: 30px; height: 30px; background: #ffff00; border-radius: 50%; position: relative; }
+        .number-icon { 
+        background: var(--primary);
+        color: white; 
+        border-radius: 50%; 
+        text-align: center; 
+        line-height: 26px; 
+        font-weight: 800; 
+        border: 2px solid white; 
+        font-size: 12px; 
+        transition: all 0.4s; 
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.3s ease; /* Macht die Drehung geschmeidig */
+
+    }
+
+        .number-icon.done { background: var(--done) !important; opacity: 0.3; border-color: transparent; }
+        .pacman-icon { 
+         width: 30px; 
+         height: 30px; 
+         background: #ffff00; 
+         border-radius: 50%; 
+         position: relative; 
+         transform: rotate(-90deg); /* Dies dreht das Maul nach oben */
+        }
+
         .pacman-mouth { position: absolute; width: 100%; height: 100%; background: #000; clip-path: polygon(100% 50%, 50% 50%, 100% 0, 100% 100%); animation: eat 0.3s infinite alternate; }
         @keyframes eat { 0% { clip-path: polygon(100% 50%, 50% 50%, 100% 50%, 100% 50%); } 100% { clip-path: polygon(100% 50%, 50% 50%, 100% 0, 100% 100%); } }
         .pacman-mode #nextDist { color: #ffff00 !important; text-shadow: 0 0 10px #ffff00; }
@@ -191,13 +215,32 @@
         if (lastPos) {
             userMarker.setLatLng(cur);
             map.panTo(cur, { animate: true, duration: 1.0 });
-            if (speed > 4) {
-                const newRotation = Math.atan2(lng - lastPos.lng, lat - lastPos.lat) * (180 / Math.PI);
-                if (Math.abs(newRotation - lastRotation) > 3) {
-                    document.getElementById('map').style.transform = `rotate(${-newRotation}deg)`;
-                    lastRotation = newRotation;
-                }
-            }
+        
+        // Nutze das offizielle GPS-Heading, falls verfügbar, sonst die Berechnung
+    let currentHeading = pos.coords.heading;
+
+    if (currentHeading === null || isNaN(currentHeading)) {
+    // Falls das GPS keine Richtung liefert, berechnen wir sie selbst (wie vorher)
+    if (lastPos && speed > 2) {
+        currentHeading = Math.atan2(lng - lastPos.lng, lat - lastPos.lat) * (180 / Math.PI);
+     }
+    }
+
+    if (currentHeading !== null && speed > 2) {
+    // Wir glätten die Drehung ein wenig, damit es nicht zittert
+    if (Math.abs(currentHeading - lastRotation) > 2) {
+        document.getElementById('map').style.transform = `rotate(${-currentHeading}deg)`;
+        lastRotation = currentHeading;
+                // NEU: Alle Zahlen-Icons wieder gerade drehen
+        const icons = document.querySelectorAll('.number-icon');
+        icons.forEach(icon => {
+            icon.style.transform = `rotate(${currentHeading}deg)`;
+        });
+
+     }
+    }
+    
+
         } else {
             userMarker.setLatLng(cur); map.setView(cur, 18);
         }
@@ -317,14 +360,30 @@
         syncPreview();
     }
 
-    function syncPreview() {
-        const tIdx = document.getElementById('tSel').value, sIdx = document.getElementById('sSel').value;
-        const section = projectData.touren[tIdx].abschnitte[sIdx];
-        if (!section) return;
-        currentPoints = section.stopps; visitedPoints.clear(); syncRouteLine();
-        document.getElementById('progText').innerText = `ABSCHNITT ${parseInt(sIdx)+1} / ${projectData.touren[tIdx].abschnitte.length}`;
-        document.getElementById('progBar').style.width = Math.round(((parseInt(sIdx)+1)/projectData.touren[tIdx].abschnitte.length)*100) + "%";
+function syncPreview() {
+    const tIdx = document.getElementById('tSel').value;
+    const sIdx = document.getElementById('sSel').value;
+    const section = projectData.touren[tIdx].abschnitte[sIdx];
+    if (!section) return;
+
+    // --- NEUE LOGIK FÜR DIE BLADE LINIE ---
+    // Wir merken uns den letzten Punkt vom vorherigen Abschnitt, falls vorhanden
+    let pointsToDisplay = [...section.stopps];
+    if (lastPos && visitedPoints.size > 0) {
+        // Wir fügen deine aktuelle Position als Startpunkt hinzu, 
+        // damit die blaue Linie immer direkt bei DIR beginnt.
+        pointsToDisplay.unshift({ lat: lastPos.lat, lng: lastPos.lng });
     }
+    
+    currentPoints = section.stopps; 
+    visitedPoints.clear(); 
+    
+    // Hier rufen wir die Linien-Berechnung mit den erweiterten Punkten auf
+    syncRouteLine(); 
+    
+    document.getElementById('progText').innerText = `ABSCHNITT ${parseInt(sIdx)+1} / ${projectData.touren[tIdx].abschnitte.length}`;
+    document.getElementById('progBar').style.width = Math.round(((parseInt(sIdx)+1)/projectData.touren[tIdx].abschnitte.length)*100) + "%";
+}
 
     async function requestWakeLock() {
         try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
