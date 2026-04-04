@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Route Check 2026 - Pro Flow</title>
+    <title>Route Check 2026 - Pro Flow V14</title>
     
     <link rel="apple-touch-icon" href="IMG/icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,7 +18,6 @@
         html, body { height: 100%; margin: 0; padding: 0; background: #000; overflow: hidden; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top); }
 
-        /* COVER SYSTEM - DEIN ORIGINAL */
         #coverScreen { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
             background: #000; z-index: 9999; 
@@ -33,10 +32,8 @@
             transition: opacity 0.4s ease-out;
         }
 
-        /* APP LAYOUT */
         #appContainer { display: none; flex: 1; flex-direction: column; background: var(--bg); opacity: 0; transition: opacity 1.5s ease-in; }
         
-        /* HEADER */
         .header { 
             background: var(--card); padding: 10px 15px; 
             display: grid; 
@@ -55,6 +52,7 @@
             border: 1px solid var(--primary); display: inline-block; min-width: 45px; 
             cursor: pointer; 
         }
+        #next-num:active { background: var(--primary); }
         .header-right { text-align: right; }
         .btn-close { color: #ef4444; font-size: 1.8rem; cursor: pointer; font-weight: 900; }
 
@@ -62,13 +60,14 @@
         select { background: #0f172a; color: white; border: 1px solid #334155; padding: 10px; border-radius: 10px; font-size: 0.85rem; outline: none; -webkit-appearance: none; }
         
         #map-wrapper { flex: 1; position: relative; overflow: hidden; background: #000; }
-        #map { width: 200%; height: 200%; position: absolute; top: -50%; left: -50%; z-index: 1; }
+        #map { width: 200%; height: 200%; position: absolute; top: -50%; left: -50%; z-index: 1; transition: transform 0.1s linear; }
 
         .map-btn { position: absolute; right: 15px; width: 50px; height: 50px; background: rgba(30, 41, 59, 0.8); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 2000; border: 1px solid #475569; font-size: 1.2rem; backdrop-filter: blur(5px); }
+        .zoom-btn { left: 15px; font-weight: bold; font-size: 1.5rem; }
+        #btn-zoom-in { top: 15px; }
+        #btn-zoom-out { top: 75px; }
         #btn-theme { top: 15px; }
         #btn-nav { top: 75px; color: var(--primary); }
-        
-        /* GEHEIM BUTTON UNTER DEM NAV BUTTON */
         #btn-pacman-trigger { position: absolute; right: 15px; top: 135px; width: 50px; height: 50px; background: rgba(30, 41, 59, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 2000; cursor: pointer; border: 1px solid rgba(71, 85, 105, 0.2); }
 
         .bottom-bar { 
@@ -80,40 +79,27 @@
         #progBar { width: 0%; height: 100%; background: var(--accent); transition: width 0.5s; }
         .footer-content { display: flex; justify-content: space-between; align-items: center; color: #94a3b8; font-size: 0.8rem; font-weight: bold; }
 
-        /* ICONS */
         .user-location-icon { width: 22px; height: 22px; background: #3b82f6; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 15px rgba(59, 130, 246, 0.8); }
-
         .number-icon { 
-        background: var(--primary);
-        color: white; 
-        border-radius: 50%; 
-        text-align: center; 
-        line-height: 26px; 
-        font-weight: 800; 
-        border: 2px solid white; 
-        font-size: 12px; 
-        transition: all 0.4s; 
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: transform 0.3s ease; /* Macht die Drehung geschmeidig */
-
-    }
-
-        .number-icon.done { background: var(--done) !important; opacity: 0.3; border-color: transparent; }
-        .pacman-icon { 
-         width: 30px; 
-         height: 30px; 
-         background: #ffff00; 
-         border-radius: 50%; 
-         position: relative; 
-         transform: rotate(-90deg); /* Dies dreht das Maul nach oben */
+            background: var(--primary); color: white; border-radius: 50%; 
+            text-align: center; line-height: 26px; font-weight: 800; 
+            border: 2px solid white; font-size: 12px; 
+            display: flex; align-items: center; justify-content: center;
         }
-
+        .number-icon.done { background: var(--done) !important; opacity: 0.3; border-color: transparent; }
+        .pacman-icon { width: 30px; height: 30px; background: #ffff00; border-radius: 50%; position: relative; transform: rotate(-90deg); }
         .pacman-mouth { position: absolute; width: 100%; height: 100%; background: #000; clip-path: polygon(100% 50%, 50% 50%, 100% 0, 100% 100%); animation: eat 0.3s infinite alternate; }
         @keyframes eat { 0% { clip-path: polygon(100% 50%, 50% 50%, 100% 50%, 100% 50%); } 100% { clip-path: polygon(100% 50%, 50% 50%, 100% 0, 100% 100%); } }
+        
         .pacman-mode #nextDist { color: #ffff00 !important; text-shadow: 0 0 10px #ffff00; }
         .pacman-mode .number-icon:not(.done) { background: #ff0000 !important; box-shadow: 0 0 15px #ff0000; border: 2px solid #fff !important; }
+
+        .hidden { opacity: 0 !important; pointer-events: none !important; }
+        .ui-element { transition: opacity 0.4s ease; }
+        #btn-ui-toggle { color: #94a3b8; font-size: 0.7rem; cursor: pointer; text-decoration: underline; }
+        #progText { cursor: pointer; padding: 5px; border-radius: 4px; }
+        #progText:active { background: rgba(255,255,255,0.1); color: #fff; }
+
     </style>
 </head>
 <body>
@@ -133,7 +119,7 @@
                 <span id="nextDist">--</span><span class="unit-m">m</span>
             </div>
             <div class="header-next">
-                <div id="next-num" onclick="manualNext()">--</div>
+                <div id="next-num" onclick="manualNextWaypoint()">--</div>
             </div>
             <div class="header-right">
                 <div class="btn-close" onclick="location.reload()">✕</div>
@@ -147,17 +133,19 @@
 
         <div id="map-wrapper">
             <div id="map"></div>
-            <div id="btn-theme" class="map-btn" onclick="toggleTheme()">🌓</div>
-            <div id="btn-nav" class="map-btn" onclick="navToStart()">📍</div>
-            <div id="btn-pacman-trigger" onclick="togglePacman()"></div>
+            <div id="btn-zoom-in" class="map-btn ui-element zoom-btn" onclick="map.zoomIn()">+</div>
+            <div id="btn-zoom-out" class="map-btn ui-element zoom-btn" onclick="map.zoomOut()">−</div>
+            <div id="btn-theme" class="map-btn ui-element" onclick="toggleTheme()">🌓</div>
+            <div id="btn-nav" class="map-btn ui-element" onclick="navToStart()">📍</div>
+            <div id="btn-pacman-trigger" class="map-btn ui-element" onclick="togglePacman()"></div>
         </div>
 
         <div class="bottom-bar">
             <div class="prog-bg"><div id="progBar"></div></div>
             <div class="footer-content">
                 <div onclick="document.getElementById('fileInput').click()" style="text-decoration: underline; cursor: pointer;">JSON LADEN</div>
-                <div id="speedText" style="font-size: 0.6rem; opacity: 0.5;">0 km/h</div>
-                <div id="progText">ABSCHNITT 0 / 0</div>
+                <div id="btn-ui-toggle" onclick="toggleUI()">BUTTONS AUS</div>
+                <div id="progText" onclick="manualNextSection()">ABSCHNITT 0 / 0</div>
                 <input type="file" id="fileInput" style="display:none" onchange="loadFile(event)">
             </div>
         </div>
@@ -168,6 +156,7 @@
     let projectData = null, map, routeLayer, userMarker, tileLayer;
     let lastPos = null, lastRotation = 0, currentPoints = [], visitedPoints = new Set();
     let wakeLock = null, isAutoLoading = false, isDarkMode = true, isPacman = false;
+    let lastPointDist = 999999; // Hilfsvariable für Vorbeifahr-Logik
 
     function lightUpAndStart() {
         const sound = document.getElementById('soundAction');
@@ -208,120 +197,137 @@
         syncRouteLine();
     }
 
+    function toggleUI() {
+        const elements = document.querySelectorAll('.map-btn');
+        const toggleBtn = document.getElementById('btn-ui-toggle');
+        elements.forEach(el => el.classList.toggle('hidden'));
+        toggleBtn.innerText = elements[0].classList.contains('hidden') ? "BUTTONS AN" : "BUTTONS AUS";
+    }
+
+    // NEU: MANUELLER PUNKT-SKIP
+    function manualNextWaypoint() {
+        let nextIdx = currentPoints.findIndex((_, i) => !visitedPoints.has(i));
+        if (nextIdx !== -1) {
+            visitedPoints.add(nextIdx);
+            syncRouteLine();
+            // Wenn es der letzte Punkt war, automatisch zum nächsten Abschnitt
+            if (nextIdx === currentPoints.length - 1) {
+                manualNextSection();
+            } else {
+                updateUI(lastPos ? L.latLng(lastPos.lat, lastPos.lng) : null);
+            }
+        }
+    }
+
+    // NEU: MANUELLER ABSCHNITT-SKIP
+    function manualNextSection() {
+        const sSel = document.getElementById('sSel');
+        if (sSel.selectedIndex < sSel.options.length - 1) {
+            sSel.selectedIndex += 1;
+            syncPreview();
+        } else {
+            alert("Letzter Abschnitt erreicht!");
+        }
+    }
+
     function updatePos(pos) {
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
         const cur = L.latLng(lat, lng), speed = Math.round((pos.coords.speed || 0) * 3.6);
-        
-        if (lastPos) {
-            userMarker.setLatLng(cur);
-            map.panTo(cur, { animate: true, duration: 1.0 });
-        
-        // Nutze das offizielle GPS-Heading, falls verfügbar, sonst die Berechnung
-    let currentHeading = pos.coords.heading;
+        userMarker.setLatLng(cur);
 
-    if (currentHeading === null || isNaN(currentHeading)) {
-    // Falls das GPS keine Richtung liefert, berechnen wir sie selbst (wie vorher)
-    if (lastPos && speed > 2) {
-        currentHeading = Math.atan2(lng - lastPos.lng, lat - lastPos.lat) * (180 / Math.PI);
-     }
-    }
+        let targetPoint = map.project(cur, map.getZoom());
+        targetPoint.y -= 100; 
+        let targetLatLng = map.unproject(targetPoint, map.getZoom());
+        map.panTo(targetLatLng, { animate: true, duration: 1.0 });
 
-    if (currentHeading !== null && speed > 2) {
-    // Wir glätten die Drehung ein wenig, damit es nicht zittert
-    if (Math.abs(currentHeading - lastRotation) > 2) {
-        document.getElementById('map').style.transform = `rotate(${-currentHeading}deg)`;
-        lastRotation = currentHeading;
-                // NEU: Alle Zahlen-Icons wieder gerade drehen
-        const icons = document.querySelectorAll('.number-icon');
-        icons.forEach(icon => {
-            icon.style.transform = `rotate(${currentHeading}deg)`;
-        });
-
-     }
-    }
-    
-
-        } else {
-            userMarker.setLatLng(cur); map.setView(cur, 18);
-        }
-        lastPos = {lat, lng};
-        document.getElementById('speedText').innerText = speed + " km/h";
-        
-        currentPoints.forEach((p, i) => {
-            if (cur.distanceTo(L.latLng(p.lat, p.lng)) < 18 && !visitedPoints.has(i)) {
-                visitedPoints.add(i);
-                syncRouteLine();
-                checkAutoNext(i);
+        let currentHeading = pos.coords.heading;
+        if (currentHeading === null || isNaN(currentHeading)) {
+            if (lastPos && speed > 2) {
+                currentHeading = Math.atan2(lng - lastPos.lng, lat - lastPos.lat) * (180 / Math.PI);
             }
-        });
+        }
+
+        if (currentHeading !== null && speed > 2) {
+            if (Math.abs(currentHeading - lastRotation) > 1) {
+                document.getElementById('map').style.transform = `rotate(${-currentHeading}deg)`;
+                lastRotation = currentHeading;
+                const icons = document.querySelectorAll('.number-icon');
+                icons.forEach(icon => { icon.style.transform = `rotate(${currentHeading}deg)`; });
+            }
+        }
+
+        lastPos = {lat, lng};
+        
+        // VORBEIFAHR-LOGIK & DISTANZ-CHECK
+        let nextIdx = currentPoints.findIndex((_, i) => !visitedPoints.has(i));
+        if (nextIdx !== -1) {
+            const d = cur.distanceTo(L.latLng(currentPoints[nextIdx].lat, currentPoints[nextIdx].lng));
+            
+            // Wenn wir sehr nah dran sind (<15m) und uns wieder entfernen -> Punkt erledigt
+            if (d < 15) {
+                if (d < lastPointDist) {
+                    lastPointDist = d; 
+                } else if (d > lastPointDist + 3) { // 3 Meter Puffer beim Entfernen
+                    visitedPoints.add(nextIdx);
+                    syncRouteLine();
+                    lastPointDist = 999999;
+                    if (nextIdx === currentPoints.length - 1) manualNextSection();
+                }
+            } else {
+                lastPointDist = 999999;
+            }
+        }
         updateUI(cur);
     }
 
     function updateUI(cur) {
-        if (!currentPoints.length) return;
+        if (!currentPoints.length || !cur) return;
         let nextIdx = currentPoints.findIndex((_, i) => !visitedPoints.has(i));
         if (nextIdx !== -1) {
             const d = cur.distanceTo(L.latLng(currentPoints[nextIdx].lat, currentPoints[nextIdx].lng));
             document.getElementById('nextDist').innerText = Math.round(d);
             document.getElementById('next-num').innerText = nextIdx + 1;
         } else {
+            document.getElementById('nextDist').innerText = "✓";
             document.getElementById('next-num').innerText = "✓";
-        }
-    }
-
-    function manualNext() {
-        const sSel = document.getElementById('sSel');
-        if (sSel.selectedIndex < sSel.options.length - 1) {
-            sSel.selectedIndex += 1;
-            // Wir rufen direkt syncPreview auf, damit der Wechsel sofort passiert
-            syncPreview();
-        }
-    }
-
-    function checkAutoNext(index) {
-        if (index === currentPoints.length - 1 && !isAutoLoading) {
-            isAutoLoading = true;
-            const sSel = document.getElementById('sSel');
-            if (sSel.selectedIndex < sSel.options.length - 1) {
-                setTimeout(() => {
-                    sSel.selectedIndex += 1;
-                    syncPreview();
-                    isAutoLoading = false;
-                }, 500); 
-            }
         }
     }
 
     async function syncRouteLine() {
         if (!currentPoints.length) return;
-        const coords = currentPoints.map(p => `${p.lng},${p.lat}`).join(';');
-        try {
-            const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
-            const d = await r.json();
-            const fullPath = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-            routeLayer.clearLayers();
-            let lastVisitedIdx = -1;
-            for(let i = 0; i < currentPoints.length; i++) { if(visitedPoints.has(i)) lastVisitedIdx = i; }
-            const w = isPacman ? 12 : 8;
-            const color = isPacman ? '#2121ff' : '#3b82f6';
-            if (lastVisitedIdx === -1) {
-                L.polyline(fullPath, {color: color, weight: w, opacity: 0.8}).addTo(routeLayer);
-            } else {
-                const splitFactor = (lastVisitedIdx + 1) / currentPoints.length;
-                const splitPoint = Math.floor(fullPath.length * splitFactor);
-                const futurePath = fullPath.slice(splitPoint);
-                if (!isPacman) {
-                    const pastPath = fullPath.slice(0, splitPoint + 1);
-                    L.polyline(pastPath, {color: '#475569', weight: 6, opacity: 0.4, dashArray: '5, 10'}).addTo(routeLayer);
-                }
-                L.polyline(futurePath, {color: color, weight: w, opacity: 0.8}).addTo(routeLayer);
-            }
-            currentPoints.forEach((p, i) => {
-                const isDone = visitedPoints.has(i);
-                if (isPacman && isDone) return;
-                L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `number-icon ${isDone ? 'done' : ''}`, html: i + 1, iconSize: [26, 26] }) }).addTo(routeLayer);
-            });
-        } catch(e) {}
+        const tIdx = document.getElementById('tSel').value;
+        const sIdx = document.getElementById('sSel').value;
+        const section = projectData.touren[tIdx].abschnitte[sIdx];
+        
+        routeLayer.clearLayers();
+        const w = isPacman ? 14 : 10; // DEINE NEUE BREITE
+        const color = isPacman ? '#2121ff' : '#3b82f6';
+
+        // Nutze Geometry aus JSON wenn vorhanden, sonst OSRM Live-Update
+        if (section.geometry) {
+            L.geoJSON(section.geometry, { style: { color: color, weight: w, opacity: 0.8, lineJoin: 'round' } }).addTo(routeLayer);
+        } else {
+            const coords = currentPoints.map(p => `${p.lng},${p.lat}`).join(';');
+            try {
+                const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+                const d = await r.json();
+                const fullPath = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                L.polyline(fullPath, { color: color, weight: w, opacity: 0.8, lineJoin: 'round' }).addTo(routeLayer);
+            } catch(e) { console.log(e); }
+        }
+
+        currentPoints.forEach((p, i) => {
+            const isDone = visitedPoints.has(i);
+            const m = L.marker([p.lat, p.lng], { 
+                icon: L.divIcon({ 
+                    className: `number-icon ${isDone ? 'done' : ''}`, 
+                    html: i + 1, 
+                    iconSize: [26, 26] 
+                }),
+                opacity: isDone ? 0.3 : 1.0
+            }).addTo(routeLayer);
+            if (lastRotation !== 0) m.getElement().style.transform += ` rotate(${lastRotation}deg)`;
+        });
     }
 
     function toggleTheme() {
@@ -336,7 +342,7 @@
 
     function loadFile(event) {
         const reader = new FileReader();
-        reader.onload = (e) => { projectData = JSON.parse(e.target.result); localStorage.setItem('active_route_data', e.target.result); fillTours(); };
+        reader.onload = (e) => { projectData = JSON.parse(e.target.result); fillTours(); };
         reader.readAsText(event.target.files[0]);
     }
 
@@ -360,30 +366,17 @@
         syncPreview();
     }
 
-function syncPreview() {
-    const tIdx = document.getElementById('tSel').value;
-    const sIdx = document.getElementById('sSel').value;
-    const section = projectData.touren[tIdx].abschnitte[sIdx];
-    if (!section) return;
-
-    // --- NEUE LOGIK FÜR DIE BLADE LINIE ---
-    // Wir merken uns den letzten Punkt vom vorherigen Abschnitt, falls vorhanden
-    let pointsToDisplay = [...section.stopps];
-    if (lastPos && visitedPoints.size > 0) {
-        // Wir fügen deine aktuelle Position als Startpunkt hinzu, 
-        // damit die blaue Linie immer direkt bei DIR beginnt.
-        pointsToDisplay.unshift({ lat: lastPos.lat, lng: lastPos.lng });
+    function syncPreview() {
+        const tIdx = document.getElementById('tSel').value;
+        const sIdx = document.getElementById('sSel').value;
+        if (!projectData || !projectData.touren[tIdx].abschnitte[sIdx]) return;
+        const section = projectData.touren[tIdx].abschnitte[sIdx];
+        currentPoints = section.stopps; 
+        visitedPoints.clear(); 
+        syncRouteLine(); 
+        document.getElementById('progText').innerText = `ABSCHNITT ${parseInt(sIdx)+1} / ${projectData.touren[tIdx].abschnitte.length}`;
+        document.getElementById('progBar').style.width = Math.round(((parseInt(sIdx)+1)/projectData.touren[tIdx].abschnitte.length)*100) + "%";
     }
-    
-    currentPoints = section.stopps; 
-    visitedPoints.clear(); 
-    
-    // Hier rufen wir die Linien-Berechnung mit den erweiterten Punkten auf
-    syncRouteLine(); 
-    
-    document.getElementById('progText').innerText = `ABSCHNITT ${parseInt(sIdx)+1} / ${projectData.touren[tIdx].abschnitte.length}`;
-    document.getElementById('progBar').style.width = Math.round(((parseInt(sIdx)+1)/projectData.touren[tIdx].abschnitte.length)*100) + "%";
-}
 
     async function requestWakeLock() {
         try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
