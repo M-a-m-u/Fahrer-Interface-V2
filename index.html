@@ -171,7 +171,7 @@
             setTimeout(() => {
                 document.getElementById('appContainer').style.opacity = '1';
                 document.getElementById('coverScreen').style.display = 'none';
-                initMap(); initAppData(); requestWakeLock();
+                initMap();setTimeout(()=>{initAppData();}, 100); requestWakeLock();
             }, 800);
         }, 2200); 
     }
@@ -340,16 +340,39 @@
         window.open(`comgooglemaps://?daddr=${currentPoints[0].lat},${currentPoints[0].lng}&directionsmode=driving`, '_blank');
     }
 
-    function loadFile(event) {
+        function loadFile(event) {
         const reader = new FileReader();
-        reader.onload = (e) => { projectData = JSON.parse(e.target.result); fillTours(); };
+        reader.onload = (e) => { 
+            projectData = JSON.parse(e.target.result); 
+            // NEU: Hier speichern wir die Daten dauerhaft im Browser
+            localStorage.setItem('active_route_data', JSON.stringify(projectData));
+            fillTours(); 
+        };
         reader.readAsText(event.target.files[0]);
     }
 
-    function initAppData() {
+        function initAppData() {
         const saved = localStorage.getItem('active_route_data');
-        if (saved) { projectData = JSON.parse(saved); fillTours(); }
+        if (saved) { 
+            projectData = JSON.parse(saved); 
+            fillTours(); 
+
+            // NEU: Letzten Stand wiederherstellen
+            const lastT = localStorage.getItem('last_tIdx');
+            const lastS = localStorage.getItem('last_sIdx');
+
+            if (lastT !== null && projectData.touren[lastT]) {
+                document.getElementById('tSel').value = lastT;
+                updateSegments(); // Aktualisiert die Abschnitts-Liste
+                
+                if (lastS !== null && projectData.touren[lastT].abschnitte[lastS]) {
+                    document.getElementById('sSel').value = lastS;
+                    syncPreview(); // Lädt die Route auf die Karte
+                }
+            }
+        }
     }
+
 
     function fillTours() {
         const tSel = document.getElementById('tSel');
@@ -363,6 +386,10 @@
         const sSel = document.getElementById('sSel');
         if (!projectData || !projectData.touren[tIdx]) return;
         sSel.innerHTML = projectData.touren[tIdx].abschnitte.map((s, i) => `<option value="${i}">${s.bezeichnung}</option>`).join('');
+        
+        // NEU: Merke dir die gewählte Tour
+        localStorage.setItem('last_tIdx', tIdx);
+        
         syncPreview();
     }
 
@@ -370,6 +397,10 @@
         const tIdx = document.getElementById('tSel').value;
         const sIdx = document.getElementById('sSel').value;
         if (!projectData || !projectData.touren[tIdx].abschnitte[sIdx]) return;
+        
+        // NEU: Merke dir den gewählten Abschnitt
+        localStorage.setItem('last_sIdx', sIdx);
+
         const section = projectData.touren[tIdx].abschnitte[sIdx];
         currentPoints = section.stopps; 
         visitedPoints.clear(); 
@@ -377,6 +408,7 @@
         document.getElementById('progText').innerText = `ABSCHNITT ${parseInt(sIdx)+1} / ${projectData.touren[tIdx].abschnitte.length}`;
         document.getElementById('progBar').style.width = Math.round(((parseInt(sIdx)+1)/projectData.touren[tIdx].abschnitte.length)*100) + "%";
     }
+
 
     async function requestWakeLock() {
         try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
