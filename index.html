@@ -502,16 +502,22 @@
     }
 
     function greetPassenger() {
-    // Hier kannst du deinen Satz für heute Nacht eintragen:
-    const text = "Hey Tiilll!, Suuper Typ!, Heute wird eine coole Nacht, ich freue mich mit Dir zu fahren! BamBam! und Bammm!";
-    
-    // Falls gerade schon etwas gesprochen wird, brechen wir es ab (kein Durcheinander)
-    window.speechSynthesis.cancel();
+    window.speechSynthesis.cancel(); // Stoppt alle alten Versuche
 
+    const text = "Hey Tiill! Super Typ!  Richtig gute Arbeit heute Nacht.";
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'de-DE';
-    utterance.pitch = 1.0; 
-    utterance.rate = 0.95; // Ganz leicht langsamer klingt natürlicher
+    
+    // Wir setzen die Sprache ganz explizit
+    utterance.lang = 'de-DE'; 
+    utterance.pitch = 1.0;
+    utterance.rate = 0.9; // Etwas langsamer, damit das Echo-Gefühl verschwindet
+
+    // WICHTIG: Wir zwingen das iPhone, die deutsche Stimme zu suchen
+    const voices = window.speechSynthesis.getVoices();
+    const germanVoice = voices.find(v => v.lang === 'de-DE' || v.lang === 'de_DE');
+    if (germanVoice) {
+        utterance.voice = germanVoice;
+    }
 
     window.speechSynthesis.speak(utterance);
 }
