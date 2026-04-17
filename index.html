@@ -86,6 +86,14 @@
             border: 2px solid white; font-size: 12px; 
             display: flex; align-items: center; justify-content: center;
         }
+                /* Der aktive Zielpunkt: Goldgelb und leuchtend */
+        .next-target { 
+            background: #eab308 !important; 
+            border: 3px solid #fff !important;
+            box-shadow: 0 0 20px #eab308;
+            z-index: 9999 !important;
+        }
+
         .number-icon.done { background: var(--done) !important; opacity: 0.3; border-color: transparent; }
         .pacman-icon { width: 30px; height: 30px; background: #ffff00; border-radius: 50%; position: relative; transform: rotate(-90deg); }
         .pacman-mouth { position: absolute; width: 100%; height: 100%; background: #000; clip-path: polygon(100% 50%, 50% 50%, 100% 0, 100% 100%); animation: eat 0.3s infinite alternate; }
@@ -176,14 +184,39 @@
         }, 2200); 
     }
 
-    function initMap() {
+
+        function initMap() {
         if(map) return;
-        map = L.map('map', { zoomControl: false, attributionControl: false }).setView([51.2, 6.7], 18);
-        tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+        // 1. Karte initialisieren mit Canvas-Vorteil (preferCanvas)
+        map = L.map('map', { 
+            zoomControl: false, 
+            attributionControl: false,
+            preferCanvas: true // Nutzt die Grafikkarte des iPhones besser aus
+        }).setView([51.2, 6.7], 18);
+
+        // 2. TileLayer mit Puffer und schnellem Laden (KeepBuffer & UpdateWhenIdle)
+        tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            keepBuffer: 40,        // Hält mehr Kacheln im Speicher bereit
+            updateWhenIdle: false, // Lädt Kacheln sofort nach, auch während der Bewegung
+            updateWhenZooming: true
+        }).addTo(map);
+
         routeLayer = L.layerGroup().addTo(map);
-        userMarker = L.marker([0,0], { icon: getIcon(), zIndexOffset: 1000 }).addTo(map);
-        if (navigator.geolocation) navigator.geolocation.watchPosition(updatePos, null, { enableHighAccuracy: true });
+
+        // 3. User-Marker mit hohem Z-Index (bleibt immer oben)
+        userMarker = L.marker([0,0], { 
+            icon: getIcon(), 
+            zIndexOffset: 5000 // Dein Standort steht über allem anderen
+        }).addTo(map);
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(updatePos, null, { 
+                enableHighAccuracy: true 
+            });
+        }
     }
+
 
     function getIcon() {
         if (isPacman) return L.divIcon({ className: '', html: '<div class="pacman-icon"><div class="pacman-mouth"></div></div>', iconSize:[30,30], iconAnchor:[15,15] });
@@ -230,15 +263,18 @@
         }
     }
 
-    function updatePos(pos) {
+        function updatePos(pos) {
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
         const cur = L.latLng(lat, lng), speed = Math.round((pos.coords.speed || 0) * 3.6);
         userMarker.setLatLng(cur);
 
+        // Karte zentrieren (etwas nach unten versetzt für bessere Vorausschau)
         let targetPoint = map.project(cur, map.getZoom());
         targetPoint.y -= 100; 
         let targetLatLng = map.unproject(targetPoint, map.getZoom());
-        map.panTo(targetLatLng, { animate: true, duration: 1.0 });
+        
+        // Bei hoher Geschwindigkeit Animation aus, um Prozessor zu schonen
+        map.panTo(targetLatLng, { animate: speed < 20, duration: 0.5 });
 
         let currentHeading = pos.coords.heading;
         if (currentHeading === null || isNaN(currentHeading)) {
@@ -247,29 +283,36 @@
             }
         }
 
+        // Karten-Rotation
         if (currentHeading !== null && speed > 2) {
             if (Math.abs(currentHeading - lastRotation) > 1) {
                 document.getElementById('map').style.transform = `rotate(${-currentHeading}deg)`;
                 lastRotation = currentHeading;
+                
+                // WICHTIG: Marker-Rotation und Sichtbarkeit erzwingen
                 const icons = document.querySelectorAll('.number-icon');
-                icons.forEach(icon => { icon.style.transform = `rotate(${currentHeading}deg)`; });
+                icons.forEach(icon => { 
+                    icon.style.transform = `rotate(${currentHeading}deg)`; 
+                });
             }
         }
 
         lastPos = {lat, lng};
         
-        // VORBEIFAHR-LOGIK & DISTANZ-CHECK
+        // VERFEINERTE LOGIK FÜR DAS ERREICHEN DER PUNKTE
         let nextIdx = currentPoints.findIndex((_, i) => !visitedPoints.has(i));
         if (nextIdx !== -1) {
             const d = cur.distanceTo(L.latLng(currentPoints[nextIdx].lat, currentPoints[nextIdx].lng));
             
-            // Wenn wir sehr nah dran sind (<15m) und uns wieder entfernen -> Punkt erledigt
+            // Punkt-Lösch-Logik:
+            // Wir müssen dem Punkt sehr nah kommen (< 15m).
+            // Er wird erst gelöscht, wenn wir den Scheitelpunkt erreicht haben und uns wieder entfernen.
             if (d < 15) {
                 if (d < lastPointDist) {
-                    lastPointDist = d; 
-                } else if (d > lastPointDist + 3) { // 3 Meter Puffer beim Entfernen
+                    lastPointDist = d; // Wir kommen noch näher
+                } else if (d > lastPointDist + 2) { // Wir haben den Punkt passiert (2m Toleranz)
                     visitedPoints.add(nextIdx);
-                    syncRouteLine();
+                    syncRouteLine(); // Zeichnet die Route neu (nächster Punkt wird jetzt gelb)
                     lastPointDist = 999999;
                     if (nextIdx === currentPoints.length - 1) manualNextSection();
                 }
@@ -277,8 +320,18 @@
                 lastPointDist = 999999;
             }
         }
+        
+        // Sicherheits-Check: Hol das routeLayer (mit den roten Punkten) nach jedem Update nach vorne
+        if(routeLayer) {
+            // In Leaflet gibt es kein direktes bringToFront für LayerGroups, 
+            // aber wir stellen sicher, dass die Marker im DOM oben bleiben.
+            const pane = map.getPane('markerPane');
+            if (pane) pane.style.zIndex = 600;
+        }
+
         updateUI(cur);
     }
+
 
     function updateUI(cur) {
         if (!currentPoints.length || !cur) return;
@@ -316,18 +369,36 @@
             } catch(e) { console.log(e); }
         }
 
-        currentPoints.forEach((p, i) => {
+                currentPoints.forEach((p, i) => {
             const isDone = visitedPoints.has(i);
+            
+            // 1. Wir finden heraus, welcher Punkt der nächste aktive ist
+            const nextIdx = currentPoints.findIndex((_, idx) => !visitedPoints.has(idx));
+            const isNext = (i === nextIdx);
+            
+            // 2. Wir definieren die Größe: Groß für den nächsten, normal für den Rest
+            const s = isNext ? 32 : 26;
+            
             const m = L.marker([p.lat, p.lng], { 
                 icon: L.divIcon({ 
-                    className: `number-icon ${isDone ? 'done' : ''}`, 
+                    className: `number-icon ${isDone ? 'done' : ''} ${isNext ? 'next-target' : ''}`, 
                     html: i + 1, 
-                    iconSize: [26, 26] 
+                    iconSize: [s, s],
+                    iconAnchor: [s/2, s/2] 
                 }),
+                zIndexOffset: isNext ? 3000 : 2000, 
                 opacity: isDone ? 0.3 : 1.0
             }).addTo(routeLayer);
-            if (lastRotation !== 0) m.getElement().style.transform += ` rotate(${lastRotation}deg)`;
+
+            if (lastRotation !== 0) {
+                const el = m.getElement();
+                if (el) {
+                    el.style.transform += ` rotate(${lastRotation}deg)`;
+                }
+            }
         });
+
+
     }
 
     function toggleTheme() {
