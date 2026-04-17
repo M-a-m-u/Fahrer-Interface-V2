@@ -108,6 +108,26 @@
         #progText { cursor: pointer; padding: 5px; border-radius: 4px; }
         #progText:active { background: rgba(255,255,255,0.1); color: #fff; }
 
+                /* Der Geheim-Button - jetzt im exakten Design der anderen */
+        #btn-greet-secret { 
+            position: absolute; 
+            left: 15px; 
+            top: 135px; 
+            width: 50px; 
+            height: 50px; 
+            background: rgba(30, 41, 59, 0.8); /* Wie deine anderen Buttons */
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 2000; 
+            border: 1px solid #475569; /* Der graue Rand deiner anderen Buttons */
+            backdrop-filter: blur(5px);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+
     </style>
 </head>
 <body>
@@ -143,6 +163,7 @@
             <div id="map"></div>
             <div id="btn-zoom-in" class="map-btn ui-element zoom-btn" onclick="map.zoomIn()">+</div>
             <div id="btn-zoom-out" class="map-btn ui-element zoom-btn" onclick="map.zoomOut()">−</div>
+            <div id="btn-greet-secret" class="map-btn ui-element" style="left: 15px; top: 135px; opacity: 0.1; border: 1px solid transparent;" onclick="greetPassenger()"></div>
             <div id="btn-theme" class="map-btn ui-element" onclick="toggleTheme()">🌓</div>
             <div id="btn-nav" class="map-btn ui-element" onclick="navToStart()">📍</div>
             <div id="btn-pacman-trigger" class="map-btn ui-element" onclick="togglePacman()"></div>
@@ -479,6 +500,21 @@
         document.getElementById('progText').innerText = `ABSCHNITT ${parseInt(sIdx)+1} / ${projectData.touren[tIdx].abschnitte.length}`;
         document.getElementById('progBar').style.width = Math.round(((parseInt(sIdx)+1)/projectData.touren[tIdx].abschnitte.length)*100) + "%";
     }
+
+    function greetPassenger() {
+    // Hier kannst du deinen Satz für heute Nacht eintragen:
+    const text = "Hey Till! Super Typ! Heute wird ne coole Nacht, ich freue mich mit Dir zu fahren! BamBam!";
+    
+    // Falls gerade schon etwas gesprochen wird, brechen wir es ab (kein Durcheinander)
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'de-DE';
+    utterance.pitch = 1.0; 
+    utterance.rate = 0.95; // Ganz leicht langsamer klingt natürlicher
+
+    window.speechSynthesis.speak(utterance);
+}
 
 
     async function requestWakeLock() {
