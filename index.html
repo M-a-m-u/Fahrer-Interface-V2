@@ -367,60 +367,62 @@
         }
     }
 
-    async function syncRouteLine() {
+
+        async function syncRouteLine() {
         if (!currentPoints.length) return;
-        const tIdx = document.getElementById('tSel').value;
-        const sIdx = document.getElementById('sSel').value;
-        const section = projectData.touren[tIdx].abschnitte[sIdx];
-        
         routeLayer.clearLayers();
-        const w = isPacman ? 14 : 10; // DEINE NEUE BREITE
+        
+        const w = isPacman ? 14 : 10;
         const color = isPacman ? '#2121ff' : '#3b82f6';
 
-        // Nutze Geometry aus JSON wenn vorhanden, sonst OSRM Live-Update
-        if (section.geometry) {
-            L.geoJSON(section.geometry, { style: { color: color, weight: w, opacity: 0.8, lineJoin: 'round' } }).addTo(routeLayer);
-        } else {
-            const coords = currentPoints.map(p => `${p.lng},${p.lat}`).join(';');
+        // Wir berechnen die Linie LIVE über OSRM (echte Straßen!)
+        // Aber nur für die nächsten 5-6 Punkte, um das iPhone nicht zu stressen
+        const nextIdx = currentPoints.findIndex((_, idx) => !visitedPoints.has(idx));
+        const activePoints = currentPoints.slice(Math.max(0, nextIdx - 1), nextIdx + 10);
+        
+        if (activePoints.length > 1) {
+            const coords = activePoints.map(p => `${p.lng},${p.lat}`).join(';');
             try {
                 const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
                 const d = await r.json();
-                const fullPath = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-                L.polyline(fullPath, { color: color, weight: w, opacity: 0.8, lineJoin: 'round' }).addTo(routeLayer);
-            } catch(e) { console.log(e); }
+                if (d.routes && d.routes[0]) {
+                    const fullPath = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                    L.polyline(fullPath, { color: color, weight: w, opacity: 0.8, lineJoin: 'round' }).addTo(routeLayer);
+                }
+            } catch(e) { 
+                // Falls Internet weg ist: Notfall-Luftlinie nur zwischen den nächsten 2 Punkten
+                const fallback = activePoints.slice(0,3).map(p => [p.lat, p.lng]);
+                L.polyline(fallback, { color: color, weight: w, opacity: 0.5, dashArray: '5, 10' }).addTo(routeLayer);
+            }
         }
 
-                currentPoints.forEach((p, i) => {
-            const isDone = visitedPoints.has(i);
-            
-            // 1. Wir finden heraus, welcher Punkt der nächste aktive ist
-            const nextIdx = currentPoints.findIndex((_, idx) => !visitedPoints.has(idx));
-            const isNext = (i === nextIdx);
-            
-            // 2. Wir definieren die Größe: Groß für den nächsten, normal für den Rest
-            const s = isNext ? 32 : 26;
-            
-            const m = L.marker([p.lat, p.lng], { 
-                icon: L.divIcon({ 
-                    className: `number-icon ${isDone ? 'done' : ''} ${isNext ? 'next-target' : ''}`, 
-                    html: i + 1, 
-                    iconSize: [s, s],
-                    iconAnchor: [s/2, s/2] 
-                }),
-                zIndexOffset: isNext ? 3000 : 2000, 
-                opacity: isDone ? 0.3 : 1.0
-            }).addTo(routeLayer);
+        // Marker-Logik (Riesiger gelber Punkt bleibt!)
+        const startVisible = Math.max(0, nextIdx - 1);
+        const endVisible = Math.min(currentPoints.length - 1, nextIdx + 2); // Zeigt 3-4 Marker
 
-            if (lastRotation !== 0) {
-                const el = m.getElement();
-                if (el) {
-                    el.style.transform += ` rotate(${lastRotation}deg)`;
+        currentPoints.forEach((p, i) => {
+            if (i >= startVisible && i <= endVisible) {
+                const isNext = (i === nextIdx);
+                const s = isNext ? 48 : 28; // Hier ist dein großer Punkt!
+                
+                const m = L.marker([p.lat, p.lng], { 
+                    icon: L.divIcon({ 
+                        className: `number-icon ${visitedPoints.has(i) ? 'done' : ''} ${isNext ? 'next-target' : ''}`, 
+                        html: i + 1, 
+                        iconSize: [s, s],
+                        iconAnchor: [s/2, s/2] 
+                    }),
+                    zIndexOffset: isNext ? 3000 : 2000
+                }).addTo(routeLayer);
+                
+                if (lastRotation !== 0) {
+                    const el = m.getElement();
+                    if (el) el.style.transform += ` rotate(${lastRotation}deg)`;
                 }
             }
         });
-
-
     }
+
 
     function toggleTheme() {
         isDarkMode = !isDarkMode;
@@ -504,7 +506,7 @@
     function greetPassenger() {
     window.speechSynthesis.cancel(); // Stoppt alle alten Versuche
 
-    const text = "Hey Till! Super Typ!  Heute wird ne coole Nacht.";
+    const text = "Hey Tiill! Super Typ!  Richtig gute Arbeit heute Nacht.";
     const utterance = new SpeechSynthesisUtterance(text);
     
     // Wir setzen die Sprache ganz explizit
