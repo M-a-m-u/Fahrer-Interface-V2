@@ -284,74 +284,58 @@
         }
     }
 
-        function updatePos(pos) {
-        const lat = pos.coords.latitude, lng = pos.coords.longitude;
-        const cur = L.latLng(lat, lng), speed = Math.round((pos.coords.speed || 0) * 3.6);
-        userMarker.setLatLng(cur);
+    function updatePos(pos) {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    const cur = L.latLng(lat, lng), speed = Math.round((pos.coords.speed || 0) * 3.6);
+    userMarker.setLatLng(cur);
 
-        // Karte zentrieren (etwas nach unten versetzt für bessere Vorausschau)
-        let targetPoint = map.project(cur, map.getZoom());
-        targetPoint.y -= 100; 
-        let targetLatLng = map.unproject(targetPoint, map.getZoom());
-        
-        // Bei hoher Geschwindigkeit Animation aus, um Prozessor zu schonen
-        map.panTo(targetLatLng, { animate: speed < 20, duration: 0.5 });
+    let targetPoint = map.project(cur, map.getZoom());
+    targetPoint.y -= 100; 
+    let targetLatLng = map.unproject(targetPoint, map.getZoom());
+    
+    map.panTo(targetLatLng, { animate: speed < 20, duration: 0.5 });
 
-        let currentHeading = pos.coords.heading;
-        if (currentHeading === null || isNaN(currentHeading)) {
-            if (lastPos && speed > 2) {
-                currentHeading = Math.atan2(lng - lastPos.lng, lat - lastPos.lat) * (180 / Math.PI);
-            }
+    let currentHeading = pos.coords.heading;
+    if (currentHeading === null || isNaN(currentHeading)) {
+        if (lastPos && speed > 2) {
+            currentHeading = Math.atan2(lng - lastPos.lng, lat - lastPos.lat) * (180 / Math.PI);
         }
-
-        // Karten-Rotation
-        if (currentHeading !== null && speed > 2) {
-            if (Math.abs(currentHeading - lastRotation) > 1) {
-                document.getElementById('map').style.transform = `rotate(${-currentHeading}deg)`;
-                lastRotation = currentHeading;
-                
-                // WICHTIG: Marker-Rotation und Sichtbarkeit erzwingen
-                const icons = document.querySelectorAll('.number-icon');
-                icons.forEach(icon => { 
-                    icon.style.transform = `rotate(${currentHeading}deg)`; 
-                });
-            }
-        }
-
-        lastPos = {lat, lng};
-        
-        // VERFEINERTE LOGIK FÜR DAS ERREICHEN DER PUNKTE
-        let nextIdx = currentPoints.findIndex((_, i) => !visitedPoints.has(i));
-        if (nextIdx !== -1) {
-            const d = cur.distanceTo(L.latLng(currentPoints[nextIdx].lat, currentPoints[nextIdx].lng));
-            
-            // Punkt-Lösch-Logik:
-            // Wir müssen dem Punkt sehr nah kommen (< 15m).
-            // Er wird erst gelöscht, wenn wir den Scheitelpunkt erreicht haben und uns wieder entfernen.
-            if (d < 15) {
-                if (d < lastPointDist) {
-                    lastPointDist = d; // Wir kommen noch näher
-                } else if (d > lastPointDist + 2) { // Wir haben den Punkt passiert (2m Toleranz)
-                    visitedPoints.add(nextIdx);
-                    syncRouteLine(); // Zeichnet die Route neu (nächster Punkt wird jetzt gelb)
-                    lastPointDist = 999999;
-                    if (nextIdx === currentPoints.length - 1) manualNextSection();
-                }
-            } else {
-                lastPointDist = 999999;
-            }
-        }
-        
-        // Sicherheits-Check: Hol das routeLayer (mit den roten Punkten) nach jedem Update nach vorne
-        if(routeLayer) {
-            // In Leaflet gibt es kein direktes bringToFront für LayerGroups, 
-            // aber wir stellen sicher, dass die Marker im DOM oben bleiben.
-            const pane = map.getPane('markerPane');
-            if (pane) pane.style.zIndex = 600;
-        }
-
-        updateUI(cur);
     }
+
+    if (currentHeading !== null && speed > 2) {
+        if (Math.abs(currentHeading - lastRotation) > 1) {
+            document.getElementById('map').style.transform = `rotate(${-currentHeading}deg)`;
+            lastRotation = currentHeading;
+            
+            const icons = document.querySelectorAll('.number-icon');
+            icons.forEach(icon => { 
+                icon.style.transform = `rotate(${currentHeading}deg)`; 
+            });
+        }
+    }
+
+    lastPos = {lat, lng};
+    
+    let nextIdx = currentPoints.findIndex((_, i) => !visitedPoints.has(i));
+    if (nextIdx !== -1) {
+        const d = cur.distanceTo(L.latLng(currentPoints[nextIdx].lat, currentPoints[nextIdx].lng));
+        if (d < 15) {
+            if (d < lastPointDist) {
+                lastPointDist = d; 
+            } else if (d > lastPointDist + 2) { 
+                visitedPoints.add(nextIdx);
+                syncRouteLine();
+                lastPointDist = 999999;
+                if (nextIdx === currentPoints.length - 1) manualNextSection();
+            }
+        } else {
+            lastPointDist = 999999;
+        }
+    }
+    
+    updateUI(cur);
+}
+
 
 
     function updateUI(cur) {
@@ -368,60 +352,49 @@
     }
 
 
-        async function syncRouteLine() {
-        if (!currentPoints.length) return;
-        routeLayer.clearLayers();
-        
-        const w = isPacman ? 14 : 10;
-        const color = isPacman ? '#2121ff' : '#3b82f6';
+    async function syncRouteLine() {
+    if (!currentPoints.length) return;
+    routeLayer.clearLayers();
+    
+    const w = isPacman ? 14 : 10;
+    const color = isPacman ? '#ffff00' : '#3b82f6';
 
-        // Wir berechnen die Linie LIVE über OSRM (echte Straßen!)
-        // Aber nur für die nächsten 5-6 Punkte, um das iPhone nicht zu stressen
-        const nextIdx = currentPoints.findIndex((_, idx) => !visitedPoints.has(idx));
-        const activePoints = currentPoints.slice(Math.max(0, nextIdx - 1), nextIdx + 10);
-        
-        if (activePoints.length > 1) {
-            const coords = activePoints.map(p => `${p.lng},${p.lat}`).join(';');
-            try {
-                const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
-                const d = await r.json();
-                if (d.routes && d.routes[0]) {
-                    const fullPath = d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-                    L.polyline(fullPath, { color: color, weight: w, opacity: 0.8, lineJoin: 'round' }).addTo(routeLayer);
-                }
-            } catch(e) { 
-                // Falls Internet weg ist: Notfall-Luftlinie nur zwischen den nächsten 2 Punkten
-                const fallback = activePoints.slice(0,3).map(p => [p.lat, p.lng]);
-                L.polyline(fallback, { color: color, weight: w, opacity: 0.5, dashArray: '5, 10' }).addTo(routeLayer);
-            }
-        }
+    const nextIdx = currentPoints.findIndex((_, idx) => !visitedPoints.has(idx));
+    if (nextIdx === -1) return;
 
-        // Marker-Logik (Riesiger gelber Punkt bleibt!)
-        const startVisible = Math.max(0, nextIdx - 1);
-        const endVisible = Math.min(currentPoints.length - 1, nextIdx + 2); // Zeigt 3-4 Marker
-
-        currentPoints.forEach((p, i) => {
-            if (i >= startVisible && i <= endVisible) {
-                const isNext = (i === nextIdx);
-                const s = isNext ? 48 : 28; // Hier ist dein großer Punkt!
-                
-                const m = L.marker([p.lat, p.lng], { 
-                    icon: L.divIcon({ 
-                        className: `number-icon ${visitedPoints.has(i) ? 'done' : ''} ${isNext ? 'next-target' : ''}`, 
-                        html: i + 1, 
-                        iconSize: [s, s],
-                        iconAnchor: [s/2, s/2] 
-                    }),
-                    zIndexOffset: isNext ? 3000 : 2000
+    const activePoints = currentPoints.slice(nextIdx, nextIdx + 3);
+    
+    if (activePoints.length > 1) {
+        const coords = activePoints.map(p => `${p.lng},${p.lat}`).join(';');
+        try {
+            const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`);
+            const d = await r.json();
+            if (d.routes && d.routes[0]) {
+                L.geoJSON(d.routes[0].geometry, { 
+                    style: { color: color, weight: w, opacity: 0.9 } 
                 }).addTo(routeLayer);
-                
-                if (lastRotation !== 0) {
-                    const el = m.getElement();
-                    if (el) el.style.transform += ` rotate(${lastRotation}deg)`;
-                }
             }
-        });
+        } catch(e) { 
+            const latLngs = activePoints.map(p => [p.lat, p.lng]);
+            L.polyline(latLngs, { color: color, weight: w, dashArray: '5, 10' }).addTo(routeLayer);
+        }
     }
+
+    activePoints.forEach((p, i) => {
+        const isTarget = (i === 0);
+        const size = isTarget ? 45 : 25;
+        
+        L.marker([p.lat, p.lng], { 
+            icon: L.divIcon({ 
+                className: `number-icon ${isTarget ? 'next-target' : ''}`, 
+                html: nextIdx + i + 1, 
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2] 
+            })
+        }).addTo(routeLayer);
+    });
+}
+
 
 
     function toggleTheme() {
